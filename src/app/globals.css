@@ -1,0 +1,349 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   PRIMME DESIGN SYSTEM — CSS TOKENS
+   Premium · Modern · Orange
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* ── Core palette ── */
+    --background: 220 20% 99%;
+    --foreground: 222 18% 10%;
+
+    /* ── Surface hierarchy ── */
+    --surface: 220 14% 97%;
+    --surface-elevated: 0 0% 100%;
+
+    /* ── Card ── */
+    --card: 0 0% 100%;
+    --card-foreground: 222 18% 10%;
+
+    /* ── Popover ── */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 18% 10%;
+
+    /* ── Brand ── */
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 28 95% 65%;
+
+    /* ── Sidebar ── */
+    --sidebar: 220 20% 99%;
+    --sidebar-foreground: 222 18% 10%;
+    --sidebar-border: 220 13% 91%;
+
+    /* ── Neutrals ── */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 18% 10%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* ── Accent ── */
+    --accent: 16 90% 48%;
+    --accent-foreground: 0 0% 100%;
+
+    /* ── Semantic ── */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 24 80% 50%;
+    --info-foreground: 0 0% 100%;
+
+    /* ── Borders / Input / Ring ── */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 24 95% 53%;
+    --radius: 0.75rem;
+
+    /* ── Overlay ── */
+    --overlay: 0 0% 0% / 0.4;
+
+    /* ── Charts ── */
+    --chart-1: 24 95% 53%;
+    --chart-2: 28 95% 65%;
+    --chart-3: 152 60% 42%;
+    --chart-4: 16 90% 48%;
+    --chart-5: 38 92% 50%;
+
+    /* ── Ink — dark premium surfaces ── */
+    --ink: 222 30% 8%;
+    --ink-foreground: 0 0% 100%;
+    --ink-muted: 220 10% 58%;
+    --ink-border: 222 20% 16%;
+
+    /* ── Shadow tokens ── */
+    --shadow-subtle: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.02);
+    --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.06), 0 1px 3px -1px rgb(0 0 0 / 0.04);
+    --shadow-elevated: 0 8px 24px -4px rgb(0 0 0 / 0.08), 0 4px 8px -4px rgb(0 0 0 / 0.04);
+    --shadow-overlay: 0 16px 48px -8px rgb(0 0 0 / 0.12), 0 8px 16px -6px rgb(0 0 0 / 0.06);
+
+    /* ── Spacing tokens ── */
+    --spacing-xs: 0.25rem;   /* 4px  */
+    --spacing-sm: 0.5rem;    /* 8px  */
+    --spacing-md: 1rem;      /* 16px */
+    --spacing-lg: 1.5rem;    /* 24px */
+    --spacing-xl: 2rem;      /* 32px */
+    --spacing-2xl: 3rem;     /* 48px */
+    --spacing-3xl: 4rem;     /* 64px */
+
+    /* ── Typography tokens ── */
+    --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: 222 20% 5%;
+    --foreground: 210 20% 95%;
+
+    --surface: 222 16% 8%;
+    --surface-elevated: 222 14% 11%;
+
+    --card: 222 16% 9%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 222 16% 9%;
+    --popover-foreground: 210 20% 95%;
+
+    --primary: 24 95% 56%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 28 95% 68%;
+
+    --sidebar: 222 20% 5%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-border: 222 14% 14%;
+
+    --secondary: 222 14% 14%;
+    --secondary-foreground: 210 20% 95%;
+    --muted: 222 14% 14%;
+    --muted-foreground: 220 8% 55%;
+
+    --accent: 16 90% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 210 20% 95%;
+    --success: 152 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 24 80% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 222 14% 15%;
+    --input: 222 14% 15%;
+    --ring: 24 95% 56%;
+
+    --overlay: 0 0% 0% / 0.6;
+
+    --chart-1: 24 95% 56%;
+    --chart-2: 28 95% 68%;
+    --chart-3: 152 60% 42%;
+    --chart-4: 16 90% 52%;
+    --chart-5: 38 92% 50%;
+
+    --ink: 222 24% 5%;
+    --ink-foreground: 210 20% 96%;
+    --ink-muted: 220 8% 52%;
+    --ink-border: 222 16% 13%;
+
+    --shadow-subtle: 0 1px 3px 0 rgb(0 0 0 / 0.2);
+    --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.3), 0 1px 3px -1px rgb(0 0 0 / 0.2);
+    --shadow-elevated: 0 8px 24px -4px rgb(0 0 0 / 0.35), 0 4px 8px -4px rgb(0 0 0 / 0.2);
+    --shadow-overlay: 0 16px 48px -8px rgb(0 0 0 / 0.45), 0 8px 16px -6px rgb(0 0 0 / 0.25);
+  }
+}
+
+/* ── Base resets ── */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-ping {
+      animation: none;
+    }
+  }
+}
+
+/* ── Typography utility classes ── */
+@layer utilities {
+  .text-display {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 5vw + 1rem, 4.5rem);
+    line-height: 1.05;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+  }
+
+  .text-h1 {
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 3vw + 0.75rem, 2.75rem);
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+  }
+
+  .text-h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 2.5vw + 0.5rem, 2rem);
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .text-h3 {
+    font-family: var(--font-display);
+    font-size: 1.375rem;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  .text-title {
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+
+  .text-body {
+    font-size: 1rem;
+    line-height: 1.65;
+    font-weight: 400;
+  }
+
+  .text-body-sm {
+    font-size: 0.875rem;
+    line-height: 1.55;
+    font-weight: 400;
+  }
+
+  .text-meta {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
+  }
+
+  .text-label {
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(32px) saturate(1.3);
+    -webkit-backdrop-filter: blur(32px) saturate(1.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .glass-dark {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(32px) saturate(1.2);
+    -webkit-backdrop-filter: blur(32px) saturate(1.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .hover-glow {
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  .hover-glow:hover {
+    box-shadow: 0 0 24px hsl(24 95% 53% / 0.12), 0 0 6px hsl(24 95% 53% / 0.08);
+    border-color: hsl(24 95% 53% / 0.2);
+  }
+
+  .border-glow {
+    border: 1px solid hsl(24 95% 53% / 0.15);
+    box-shadow: 0 0 12px hsl(24 95% 53% / 0.06);
+  }
+
+  .gradient-mesh {
+    background:
+      radial-gradient(at 20% 80%, hsl(var(--primary) / 0.06) 0%, transparent 50%),
+      radial-gradient(at 80% 20%, hsl(var(--accent) / 0.04) 0%, transparent 50%);
+  }
+
+  .gradient-orange-mesh {
+    background:
+      radial-gradient(at 20% 80%, hsl(24 95% 53% / 0.08) 0%, transparent 50%),
+      radial-gradient(at 80% 20%, hsl(16 90% 48% / 0.06) 0%, transparent 50%),
+      radial-gradient(at 50% 50%, hsl(20 92% 50% / 0.03) 0%, transparent 60%);
+  }
+
+  .glow-orange {
+    box-shadow: 0 0 20px hsl(24 95% 53% / 0.15), 0 0 60px hsl(24 95% 53% / 0.05);
+  }
+
+  /* Progress animation */
+  .animate-progress-fill {
+    animation: progress-fill 1s ease-out forwards;
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes progress-fill {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(var(--tw-translate-x, -0%));
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(10px, -15px) scale(1.02);
+  }
+  66% {
+    transform: translate(-8px, 10px) scale(0.98);
+  }
+}
+
+@keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+  }
+}
+
+@keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);
+  }
+  15%, 35% {
+    transform: translateZ(0) rotate(90deg);
+  }
+  65%, 85% {
+    transform: translateZ(0) rotate(270deg);
+  }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+  }
+}

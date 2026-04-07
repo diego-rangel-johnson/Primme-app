@@ -1,0 +1,80 @@
+---
+description: Templates de prompt para criação de páginas e componentes. Usar como referência ao criar landing pages, seções hero, ou interfaces novas.
+globs:
+  - "src/app/**/*.tsx"
+alwaysApply: false
+---
+
+# Templates de Prompt para Frontend
+
+## Template: Landing Page
+
+Ao criar uma landing page, siga este formato:
+
+```
+Crie uma landing page para [produto/feature da PRIMME].
+
+Visual Thesis: [uma frase sobre o mood — ex: "Confiança profissional com toques de energia laranja PRIMME"]
+
+Estrutura:
+1. Hero: [descrição — imagem de fundo, título em font-display, subtítulo, CTA com bg-primary]
+2. Seção de suporte: [contexto visual — como o produto funciona]
+3. Detalhe: [explicação do valor/feature]
+4. Prova social: [formato — depoimentos, logos, métricas]
+5. CTA final: [call to action de conversão]
+
+Regras:
+- Sem cards no hero
+- Usar tokens semânticos PRIMME (primary, muted, background, etc.)
+- Full-bleed hero
+- Motion: fade-in no hero, scroll reveal nas seções, hover nos CTAs
+- Mobile-first
+- Copy real, não placeholder
+```
+
+## Template: Dashboard/App UI
+
+```
+Crie a página [nome] do portal [client/provider/affiliate].
+
+Layout:
+- Sidebar navigation (componente existente)
+- PageHeader com título e ação principal
+- Conteúdo organizado em [grid/stack]
+
+Componentes a usar:
+- SurfaceCard para agrupamentos interativos
+- MetricCard para KPIs
+- StatusBadge para estados
+- LoadingSpinner para loading
+
+Dados:
+- [descrever os dados que a página mostra]
+
+Regras:
+- Informação densa mas legível
+- Chrome mínimo
+- Tokens PRIMME para cores, sombras, radius
+- Tipografia: text-h1 para título, text-h3 para subtítulos, text-body para conteúdo
+```
+
+## Template: Componente Visual
+
+```
+Crie o componente [Nome] para [contexto de uso].
+
+Props:
+- [listar props necessárias]
+
+Visual:
+- [descrever aparência desejada]
+- Usar tokens PRIMME: [listar tokens relevantes]
+
+Interação:
+- [hover, click, animação]
+- Usar motion para [transição específica]
+
+Responsivo:
+- Mobile: [comportamento]
+- Desktop: [comportamento]
+```

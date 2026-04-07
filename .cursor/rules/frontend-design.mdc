@@ -1,0 +1,187 @@
+---
+description: Regras de design e composição visual para criação de páginas, landing pages e interfaces. Aplicar sempre que criar ou editar componentes visuais, layouts, páginas, heros ou seções de conteúdo.
+globs:
+  - "src/app/**/*.tsx"
+  - "src/components/**/*.tsx"
+  - "src/app/**/*.jsx"
+alwaysApply: false
+---
+
+# Frontend Design Rules — Composição Visual e Boas Práticas
+
+Baseado no guia "Designing Delightful Frontends" da OpenAI, adaptado para o projeto PRIMME.
+
+## Filosofia
+
+O modelo gera frontends melhores com restrições claras de design, referências visuais e narrativa estruturada. Priorize composição visual, hierarquia e clareza sobre features ou decoração.
+
+## Regras de Composição
+
+### Hero (Primeira Viewport)
+- DEVE ser lido como UMA COMPOSIÇÃO ÚNICA, não um dashboard
+- Full-bleed por padrão em landing pages
+- Marca/produto deve ser inconfundível
+- Uma âncora visual forte e dominante
+- CTA claro e visível
+- PROIBIDO: cards no hero, stat strips, dashboards flutuantes, hero boxed em coluna central
+- Texto sobre imagem precisa de contraste forte
+- Colunas de texto estreitas e ancoradas
+
+### Cards — O Padrão É NÃO Usar
+- PADRÃO: sem cards, a menos que sejam interativos (clicáveis, arrastáveis)
+- Nunca use cards apenas para agrupar texto estático
+- Cards no hero são SEMPRE proibidos
+- Se precisar agrupar conteúdo, use espaçamento e tipografia
+- Quando cards forem necessários no projeto PRIMME, use o componente `SurfaceCard`
+
+### Seções
+- Uma ideia dominante por seção
+- Cada seção tem uma única responsabilidade: explicar, provar, aprofundar ou converter
+- Sem redundância de conteúdo entre seções
+- Headline nunca deve ofuscar a marca PRIMME
+
+### Tipografia
+- Máximo 2 famílias tipográficas (PRIMME usa Outfit para display + Inter para body)
+- Headlines carregam significado real, não são decoração
+- Texto de suporte em uma frase
+- A página deve ser compreensível apenas escaneando headlines
+- Seguir a escala tipográfica do design system PRIMME (text-display → text-label)
+
+### Cor
+- Uma cor de destaque (PRIMME primary/orange) como accent principal
+- Hierarquia: background → surface → text (usar tokens semânticos do projeto)
+- Sem gradientes decorativos desnecessários
+
+## Motion (Animações)
+
+### Requisitos Mínimos
+Toda página/seção importante deve ter pelo menos 2-3 animações intencionais:
+1. Uma sequência de entrada no hero (fade-in, slide-up)
+2. Um efeito scroll-linked ou sticky
+3. Uma transição de hover/reveal/layout
+
+### Regras de Motion
+- Deve ser perceptível em uma gravação rápida de tela
+- Performance suave no mobile
+- Rápida e contida (não exagerada)
+- Consistente entre páginas
+- Se for puramente ornamental sem função, remova
+- Usar o package `motion` já instalado no projeto para: section reveals, layout transitions, scroll effects
+
+## Estrutura Narrativa para Landing Pages
+
+Seguir esta sequência:
+1. **Hero** — identidade e promessa (marca, título, CTA, visual dominante)
+2. **Imagem/visual de suporte** — contexto e ambiente
+3. **Detalhe do produto** — explicação clara
+4. **Prova social** — credibilidade (depoimentos, logos, números)
+5. **CTA final** — conversão
+
+## Visual Thesis — Definir Antes de Construir
+
+Antes de gerar código para uma nova página, documentar:
+1. **Visual Thesis**: uma frase sobre mood/material/energia
+2. **Plano de conteúdo**: hero, suporte, detalhe, CTA
+3. **Thesis de interação**: 2-3 conceitos de motion
+
+## App UI (Interfaces Internas — Estilo Linear)
+
+Para dashboards e interfaces de app (portais client/provider/affiliate):
+- Hierarquia calma de superfícies
+- Tipografia forte com espaçamento generoso
+- Paleta mínima de cores (usar tokens PRIMME)
+- Informação densa mas legível
+- Chrome mínimo (pouca decoração)
+- Cards apenas quando interativos (usar SurfaceCard)
+
+## Imagens
+- Visuais reais e narrativos (não gradientes abstratos)
+- Fotografia in-situ preferida sobre elementos abstratos
+- Áreas tonais estáveis para overlay de texto
+- Usar `next/image` com `priority` para above-the-fold
+
+## Copy
+- Linguagem de produto, não comentário sobre design
+- Headlines com significado
+- Texto de suporte em uma frase
+- Sem redundância entre seções
+
+## Responsividade
+- Mobile-first sempre
+- Toda composição deve funcionar em mobile
+- Testar motion no mobile (performance)
+
+## Design System — Token Reference
+
+### Tipografia (usar classes do Tailwind config)
+| Token | Uso | Exemplo de classe |
+|-------|-----|-------------------|
+| `text-display` | Hero headings, números grandes | `text-display font-display` |
+| `text-h1` | Títulos de página | `text-h1 font-display` |
+| `text-h2` | Títulos de seção | `text-h2 font-display` |
+| `text-h3` | Títulos de card/subsection | `text-h3 font-display` |
+| `text-title` | Títulos inline bold | `text-title` |
+| `text-body` | Texto padrão de leitura | `text-body` |
+| `text-body-sm` | Texto compacto de leitura | `text-body-sm` |
+| `text-meta` | Timestamps, info secundária | `text-meta` |
+| `text-label` | Labels uppercase (badges, tags, kickers) | `text-label` |
+
+PROIBIDO: `text-[10px]`, `text-[11px]`, `text-[9px]`, `text-[13px]` — usar tokens acima.
+
+### Cores — Superfícies
+| Token | Uso |
+|-------|-----|
+| `bg-background` | Fundo principal |
+| `bg-surface` | Fundo de seções |
+| `bg-card` | Cards e painéis |
+| `bg-ink` | Superfícies dark premium (hero cards, auth panels, CTAs escuros) |
+| `text-ink-foreground` | Texto sobre ink |
+| `text-ink-muted` | Texto secundário sobre ink |
+| `border-ink-border` | Bordas sobre ink |
+
+PROIBIDO: `bg-neutral-900`, `text-neutral-400`, `border-neutral-800` — usar tokens ink.
+
+### Sombras (4 níveis)
+`shadow-subtle` → `shadow-card` → `shadow-elevated` → `shadow-overlay`
+
+### Bordas (escala)
+`rounded-sm` (6px) → `rounded-md` (8px) → `rounded-lg` (12px) → `rounded-xl` (16px) → `rounded-2xl` (20px)
+
+### Transições
+`duration-fast` (150ms) → `duration-normal` (250ms) → `duration-slow` (400ms)
+
+### Botões
+| Variante | Uso |
+|----------|-----|
+| `default` | Ações primárias padrão |
+| `brand` | CTAs principais em headers e heros |
+| `outline` | Ações secundárias |
+| `ghost` | Ações terciárias / nav |
+| `destructive` | Ações destrutivas |
+
+### Padrão "VIEW ALL" Link
+```
+className="text-label text-primary hover:text-primary-light flex items-center gap-1 group bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors duration-fast border border-primary/10"
+```
+
+### Padrão "Kicker Badge" (acima de títulos)
+```
+className="text-label text-muted-foreground mb-2 flex items-center gap-2"
+```
+
+## Litmus Test (Verificação Final)
+
+Após gerar ou editar qualquer página ou seção visual, pergunte:
+- [ ] Marca PRIMME inconfundível na primeira tela?
+- [ ] Âncora visual forte?
+- [ ] Página compreensível escaneando headlines?
+- [ ] Cada seção com um único trabalho?
+- [ ] Cards realmente necessários?
+- [ ] Motion melhora hierarquia?
+- [ ] Design pareceria premium sem sombras decorativas?
+- [ ] Tipografia usa APENAS tokens do sistema (text-display...text-label)?
+- [ ] Superfícies escuras usam tokens ink (não neutral-*)?
+- [ ] Botões de header usam variant="brand" size="lg"?
+- [ ] Links "View All" seguem o padrão text-label?
+- [ ] Contraste e tap targets acessíveis em mobile?
+- [ ] Estados ativos consistentes (bg-primary para nav/tabs)?
