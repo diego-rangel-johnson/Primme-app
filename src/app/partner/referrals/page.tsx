@@ -18,16 +18,44 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/status-badge";
+import { useReferrals } from "@/lib/supabase/hooks";
+import { useSession } from "@/context/session-context";
 
 const ITEMS_PER_PAGE = 3;
 
 type FilterTab = "ALL" | "VERIFIED" | "PENDING";
 
 export default function PartnerReferralsPage() {
+  const { user } = useSession();
+  const { data: dbReferrals } = useReferrals(user?.id);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("ALL");
   const [inviteEmail, setInviteEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const avatarColors = [
+    "bg-primary/10 text-primary",
+    "bg-info/10 text-info",
+    "bg-warning/10 text-warning",
+    "bg-success/10 text-success",
+    "bg-purple-500/10 text-purple-500",
+  ];
+  const mappedReferrals = dbReferrals.map((r, i) => ({
+    id: i + 1,
+    initial: (r.referred_name ?? r.referred_email)?.[0]?.toUpperCase() ?? "?",
+    name: r.referred_name ?? r.referred_email,
+    email: r.referred_email,
+    type: i % 2 === 0 ? "Homeowner" : "Service Provider",
+    commission: `$${r.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    status: r.status === "converted" ? "VERIFIED" : "PENDING",
+    date: new Date(r.created_at!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    avatarColor: avatarColors[i % avatarColors.length],
+  }));
+
+  const totalRefs = dbReferrals.length || 42;
+  const totalEarned = dbReferrals.reduce((s, r) => s + r.commission, 0);
+  const avgCommission = dbReferrals.length > 0 ? totalEarned / dbReferrals.length : 82.14;
 
   const statusVariantMap: Record<string, "success" | "warning" | "neutral"> = {
     VERIFIED: "success",
@@ -92,7 +120,9 @@ export default function PartnerReferralsPage() {
     },
   ];
 
-  const filtered = referrals.filter((r) => {
+  const activeReferrals = mappedReferrals.length > 0 ? mappedReferrals : referrals;
+
+  const filtered = activeReferrals.filter((r) => {
     const matchesFilter = activeFilter === "ALL" || r.status === activeFilter;
     const matchesSearch =
       !searchQuery ||
@@ -112,9 +142,9 @@ export default function PartnerReferralsPage() {
   };
 
   const filterTabs: { label: string; value: FilterTab; count: number }[] = [
-    { label: "All", value: "ALL", count: referrals.length },
-    { label: "Verified", value: "VERIFIED", count: referrals.filter((r) => r.status === "VERIFIED").length },
-    { label: "Pending", value: "PENDING", count: referrals.filter((r) => r.status === "PENDING").length },
+    { label: "All", value: "ALL", count: activeReferrals.length },
+    { label: "Verified", value: "VERIFIED", count: activeReferrals.filter((r) => r.status === "VERIFIED").length },
+    { label: "Pending", value: "PENDING", count: activeReferrals.filter((r) => r.status === "PENDING").length },
   ];
 
   return (
@@ -206,7 +236,7 @@ export default function PartnerReferralsPage() {
                 <TrendingUp className="w-3 h-3" /> +8.2%
               </span>
             </div>
-            <p className="text-5xl font-black tracking-tighter text-foreground">42</p>
+            <p className="text-5xl font-black tracking-tighter text-foreground">{String(totalRefs)}</p>
             <p className="text-sm font-bold text-muted-foreground mt-2">Active network members</p>
           </motion.div>
 
@@ -226,7 +256,7 @@ export default function PartnerReferralsPage() {
               </span>
             </div>
             <div className="relative z-10">
-              <p className="text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-ink-foreground to-ink-foreground/70">$3,450</p>
+              <p className="text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-ink-foreground to-ink-foreground/70">${totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
               <p className="text-sm font-bold text-neutral-500 mt-2">Lifetime commission volume</p>
             </div>
           </motion.div>
@@ -246,7 +276,7 @@ export default function PartnerReferralsPage() {
                 <TrendingUp className="w-3 h-3" /> +4.1%
               </span>
             </div>
-            <p className="text-5xl font-black tracking-tighter text-foreground">$82.14</p>
+            <p className="text-5xl font-black tracking-tighter text-foreground">${avgCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
             <p className="text-sm font-bold text-muted-foreground mt-2">Per successful conversion</p>
           </motion.div>
         </div>

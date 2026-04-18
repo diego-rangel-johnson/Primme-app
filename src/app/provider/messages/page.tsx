@@ -1,10 +1,14 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { Phone, Video, Info } from "lucide-react";
 import { MessageLayout } from "@/components/messages/message-layout";
 import type { ConversationData } from "@/components/messages/conversation-item";
 import type { ChatMessageData } from "@/components/messages/chat-bubble";
 import type { HeaderAction } from "@/components/messages/chat-header";
+import { useSession } from "@/context/session-context";
+import { useConversations, useMessages } from "@/lib/supabase/hooks";
+import { createClient } from "@/lib/supabase/client";
 
 const conversations: ConversationData[] = [
   {
@@ -107,10 +111,77 @@ function getHeaderActions(): HeaderAction[] {
 }
 
 export default function ProviderMessagesPage() {
+  const { user } = useSession();
+  const { data: convos } = useConversations(user?.id);
+  const supabase = createClient();
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [profileMap, setProfileMap] = useState<Record<string, { name: string; avatar_url: string | null; initials: string | null }>>({});
+
+  const { data: supaMessages } = useMessages(selectedId ?? undefined);
+
+  useEffect(() => {
+    if (!convos.length || !user?.id) return;
+    const otherUserIds = convos.flatMap(c =>
+      c.participants.filter(p => p.user_id !== user.id).map(p => p.user_id)
+    );
+    const unique = [...new Set(otherUserIds)];
+    if (!unique.length) return;
+    supabase
+      .from("profiles")
+      .select("id, name, email, avatar_url, initials")
+      .in("id", unique)
+      .then(({ data }) => {
+        const map: Record<string, { name: string; avatar_url: string | null; initials: string | null }> = {};
+        (data ?? []).forEach(p => {
+          map[p.id] = { name: p.name ?? p.email ?? "User", avatar_url: p.avatar_url, initials: p.initials };
+        });
+        setProfileMap(map);
+      });
+  }, [convos, user?.id, supabase]);
+
+  const mappedConversations: ConversationData[] = convos.map(c => {
+    const otherParticipant = c.participants.find(p => p.user_id !== user?.id);
+    const otherId = otherParticipant?.user_id ?? "";
+    const profile = profileMap[otherId];
+    return {
+      id: c.id,
+      name: profile?.name ?? "Loading...",
+      avatar: profile?.avatar_url ?? `https://i.pravatar.cc/150?u=${otherId}`,
+      status: "online",
+      lastMessage: "",
+      time: c.created_at ? new Date(c.created_at).toLocaleDateString() : "",
+      unread: 0,
+      online: true,
+    };
+  });
+
+  const mappedMessages: ChatMessageData[] = supaMessages.map(m => ({
+    id: Number(m.id.replace(/\D/g, "").slice(0, 8)) || Math.random(),
+    text: m.content,
+    time: new Date(m.created_at!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    sender: m.sender_id === user?.id ? "me" : "them",
+    read: true,
+  }));
+
+  const handleSend = useCallback(
+    async (text: string, conversationId: string) => {
+      if (!user?.id || !conversationId) return;
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: text,
+      });
+    },
+    [user?.id, supabase]
+  );
+
+  const displayConversations = mappedConversations.length > 0 ? mappedConversations : conversations;
+
   return (
     <div className="h-full p-4 lg:p-6">
       <MessageLayout
-        conversations={conversations}
+        conversations={displayConversations}
         initialMessages={initialMessages}
         headerActions={getHeaderActions}
         headerRoleLabel="PROJECT"
@@ -118,6 +189,10 @@ export default function ProviderMessagesPage() {
         title="Messages"
         emptyTitle="Select a conversation"
         emptyDescription="Choose a project or client conversation from the list to continue messaging."
+        externalMessages={mappedMessages}
+        onSend={handleSend}
+        onSelectConversation={setSelectedId}
+        selectedConversationId={selectedId}
       />
     </div>
   );

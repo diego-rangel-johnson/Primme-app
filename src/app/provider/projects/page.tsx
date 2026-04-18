@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useProjectsForProvider } from "@/lib/supabase/hooks";
+import { useSession } from "@/context/session-context";
 
 const PROJECTS = [
   {
@@ -58,18 +60,34 @@ const PROJECTS = [
 const FILTERS = ["ALL", "IN PROGRESS", "PLANNING", "COMPLETED"];
 
 export default function ProviderProjectsPage() {
+  const { user } = useSession();
+  const { data: dbProjects, loading } = useProjectsForProvider(user?.id);
   const [activeFilter, setActiveFilter] = useState("all");
 
+  const mappedProjects = dbProjects.map((p) => ({
+    id: p.id.slice(0, 8).toUpperCase(),
+    title: p.title,
+    location: p.address ?? "Miami, FL",
+    status: p.status === "in_progress" ? "in-progress" : p.status === "active" ? "planning" : p.status,
+    statusLabel: p.status === "in_progress" ? "IN PROGRESS" : p.status.toUpperCase().replace("_", " "),
+    progress: p.progress,
+    dueDate: p.status === "completed" ? "Completed" : p.timeline ?? "TBD",
+    image: p.thumbnail_url ?? "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800",
+    client: "James W.",
+  }));
+
+  const projects = mappedProjects.length > 0 ? mappedProjects : PROJECTS;
+
   const filteredProjects = useMemo(() => {
-    if (activeFilter === "all") return PROJECTS;
+    if (activeFilter === "all") return projects;
     const statusMap: Record<string, string> = {
       "in progress": "in-progress",
       "planning": "planning",
       "completed": "completed",
     };
     const mapped = statusMap[activeFilter];
-    return PROJECTS.filter((p) => p.status === mapped);
-  }, [activeFilter]);
+    return projects.filter((p) => p.status === mapped);
+  }, [activeFilter, projects]);
 
   return (
     <div className="min-h-full flex flex-col bg-muted/20">

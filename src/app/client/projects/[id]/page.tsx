@@ -11,23 +11,24 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/status-badge";
+import { useProject, useMilestones, useDocuments, useProjectMembers } from "@/lib/supabase/hooks";
 
-/* ─── Mock Data ─── */
+/* ─── Fallback Mock Data ─── */
 
-const milestones = [
+const fallbackMilestones = [
   { id: 1, phase: "Demolition & Prep", status: "completed", date: "OCT 24", amount: "$8,500", description: "Removal of old finishes, surface cleaning, and workspace setup." },
   { id: 2, phase: "Rough Plumbing / Electrical", status: "completed", date: "NOV 02", amount: "$12,000", description: "Wiring updates and plumbing rough-ins for the new layout." },
   { id: 3, phase: "Drywall Installation", status: "active", date: "NOV 15", amount: "$15,750", subtitle: "IN PROGRESS", description: "Hanging, taping, and finishing all interior walls." },
   { id: 4, phase: "Painting & Finish", status: "upcoming", date: "DEC 01", amount: "$18,000", description: "Premium paint application, trim, and final detailing." },
 ];
 
-const teamMembers = [
+const fallbackTeamMembers = [
   { name: "John Doe", role: "Contractor", img: "https://i.pravatar.cc/150?img=11", online: true },
   { name: "Sarah Smith", role: "Designer", img: "https://i.pravatar.cc/150?img=5", online: true },
   { name: "Mike Ross", role: "Architect", img: "https://i.pravatar.cc/150?img=12", online: false },
 ];
 
-const documents = [
+const fallbackDocuments: { name: string; type: "contract" | "invoice" | "photo" | "report"; date: string; size: string }[] = [
   { name: "Contract Agreement", type: "contract", date: "Oct 15, 2024", size: "2.4 MB" },
   { name: "Initial Estimate", type: "invoice", date: "Oct 18, 2024", size: "1.1 MB" },
   { name: "Progress Photos - Week 2", type: "photo", date: "Nov 01, 2024", size: "15.8 MB" },
@@ -55,12 +56,45 @@ const DOC_ICONS: Record<string, typeof FileText> = {
 
 export default function ProjectDetailPage() {
   const params = useParams();
-  const _id = params.id as string;
+  const id = params.id as string;
 
+  const { data: project } = useProject(id);
+  const { data: dbMilestones } = useMilestones(id);
+  const { data: dbDocuments } = useDocuments(id);
+  const { data: dbMembers } = useProjectMembers(id);
+
+  const mappedMilestones = dbMilestones.map((m, i) => ({
+    id: i + 1,
+    phase: m.title,
+    status: m.status === "in_progress" ? "active" as const : m.status === "pending" ? "upcoming" as const : "completed" as const,
+    date: m.due_date ? new Date(m.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase() : "TBD",
+    amount: project ? `$${Math.round((project.budget ?? 0) / dbMilestones.length).toLocaleString()}` : "—",
+    description: m.title,
+    subtitle: m.status === "in_progress" ? "IN PROGRESS" : undefined,
+  }));
+
+  const mappedTeam = dbMembers.map((m) => ({
+    name: m.profile?.name ?? "Team Member",
+    role: m.role_in_project === "contractor" ? "Lead Contractor" : m.role_in_project === "owner" ? "Homeowner" : m.role_in_project,
+    img: m.profile?.avatar_url ?? `https://i.pravatar.cc/150?u=${m.user_id}`,
+    online: true,
+  }));
+
+  const mappedDocs = dbDocuments.map((d) => ({
+    name: d.name,
+    type: (d.type ?? "report") as "contract" | "invoice" | "photo" | "report",
+    date: new Date(d.created_at!).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    size: "—",
+  }));
+
+  const milestones = mappedMilestones.length > 0 ? mappedMilestones : fallbackMilestones;
+  const teamMembers = mappedTeam.length > 0 ? mappedTeam : fallbackTeamMembers;
+  const documents = mappedDocs.length > 0 ? mappedDocs : fallbackDocuments;
+
+  const totalBudget = project?.budget ?? 145000;
   const completedCount = milestones.filter((m) => m.status === "completed").length;
-  const progressPct = Math.round((completedCount / milestones.length) * 100 + (milestones.some((m) => m.status === "active") ? 15 : 0));
-  const totalBudget = 145000;
-  const allocated = 94250;
+  const progressPct = project?.progress ?? Math.round((completedCount / milestones.length) * 100 + (milestones.some((m) => m.status === "active") ? 15 : 0));
+  const allocated = Math.round(totalBudget * (progressPct / 100));
 
   return (
     <Tabs defaultValue="overview" className="min-h-screen bg-muted/20 flex flex-col">
@@ -125,12 +159,12 @@ export default function ProjectDetailPage() {
                 PRJ-2024-001
               </span>
               <span className="text-white/60 text-sm font-semibold flex items-center gap-1.5">
-                <MapPin className="w-4 h-4" /> 1200 Brickell Bay Dr, Miami, FL
+                <MapPin className="w-4 h-4" /> {project?.address ?? "1200 Brickell Bay Dr, Miami, FL"}
               </span>
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-3 tracking-tight leading-[1.1]">
-              Downtown <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-light">Penthouse Painting</span>
+              {(project?.title ?? "Downtown Penthouse Painting").split(" ").slice(0, -1).join(" ")} <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-light">{(project?.title ?? "Downtown Penthouse Painting").split(" ").slice(-1)[0]}</span>
             </h1>
             <p className="text-white/50 text-lg font-semibold mb-6">
               Your renovation is <span className="text-primary font-bold">{progressPct}%</span> complete

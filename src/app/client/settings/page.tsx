@@ -1,10 +1,9 @@
 "use client";
 
-import { User, Bell, Shield, LogOut, Camera, Loader2, Check } from "lucide-react";
-import { useState } from "react";
+import { User, Bell, Shield, LogOut, Loader2, Check } from "lucide-react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/status-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -13,247 +12,415 @@ import { Separator } from "@/components/ui/separator";
 import { useSession } from "@/context/session-context";
 import { createClient } from "@/lib/supabase/client";
 
-export default function SettingsPage() {
-  const { user, logout } = useSession();
-  const nameParts = user?.name.split(" ") ?? ["", ""];
-  const firstName = nameParts[0];
-  const lastName = nameParts.slice(1).join(" ");
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
+export default function ClientSettingsPage() {
+  const { user, logout } = useSession();
+  const [formValues, setFormValues] = useState({
+    fullName: user?.name ?? "",
+    email: user?.email ?? "",
+    phone: user?.phone ?? "",
+  });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const validateIdentity = (form: FormData): boolean => {
-    const errs: Record<string, string> = {};
-    if (!form.get("firstName")?.toString().trim()) errs.firstName = "First name is required.";
-    if (!form.get("lastName")?.toString().trim()) errs.lastName = "Last name is required.";
-    const emailVal = form.get("email")?.toString().trim() ?? "";
-    if (!emailVal) errs.email = "Email is required.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) errs.email = "Invalid email format.";
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+  const [notifProject, setNotifProject] = useState(true);
+  const [notifPayment, setNotifPayment] = useState(true);
+  const [notifMessage, setNotifMessage] = useState(true);
+  const [notifMilestone, setNotifMilestone] = useState(true);
+  const [notifTeam, setNotifTeam] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    setFormValues({
+      fullName: user.name,
+      email: user.email,
+      phone: user.phone,
+    });
+  }, [user]);
+
+  const updateField = (field: keyof typeof formValues, value: string) => {
+    setFormValues((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleIdentitySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCancel = () => {
+    if (!user) return;
+    setFormValues({
+      fullName: user.name,
+      email: user.email,
+      phone: user.phone,
+    });
+    setFormErrors({});
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    if (!validateIdentity(form)) return;
-    if (!user?.id) {
+    const errs: Record<string, string> = {};
+    if (!formValues.fullName.trim()) errs.fullName = "Name is required.";
+    const emailVal = formValues.email.trim();
+    if (!emailVal) errs.email = "Email is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) errs.email = "Invalid email.";
+    setFormErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    if (!user) {
       toast.error("You must be signed in to save settings.");
       return;
     }
+
     setSaving(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          name: `${form.get("firstName")?.toString().trim()} ${form.get("lastName")?.toString().trim()}`.trim(),
-          email: form.get("email")?.toString().trim(),
-          phone: form.get("phone")?.toString().trim(),
-        })
-        .eq("id", user.id);
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      setSaved(true);
-      toast.success("Settings saved successfully!");
-      setTimeout(() => setSaved(false), 2000);
-    } finally {
-      setSaving(false);
+    const supabase = createClient();
+    const name = formValues.fullName.trim();
+    const initials = initialsFromName(name);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        name,
+        email: emailVal,
+        phone: formValues.phone.trim() || null,
+        initials,
+      })
+      .eq("id", user.id);
+
+    setSaving(false);
+
+    if (error) {
+      toast.error("Failed to save: " + error.message);
+      return;
     }
+
+    setSaved(true);
+    toast.success("Settings saved successfully!");
+    setTimeout(() => setSaved(false), 2000);
   };
 
-  const [notifications, setNotifications] = useState<Record<string, boolean>>({
-    "Project updates": true,
-    "Payment notifications": true,
-    "Message alerts": true,
-    "Milestone completions": true,
-    "Team activity": true,
-  });
+  const handleSaveNotifications = async () => {
+    setSaving(true);
+    await new Promise((r) => setTimeout(r, 600));
+    setSaving(false);
+    toast.success("Notification preferences updated!");
+  };
 
   return (
     <>
-      {/* Header */}
       <header className="lg:sticky lg:top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border/50 px-6 lg:px-8 py-5">
-        <h2 className="text-h1 font-display">
-          System <span className="text-primary">Preferences</span>
-        </h2>
+        <h2 className="text-h1 font-display text-foreground">Settings</h2>
         <p className="text-muted-foreground mt-1">
-          Manage your security and interface settings.
+          Manage your account preferences and notification settings.
         </p>
       </header>
 
-      {/* Content */}
       <div className="p-8">
-        <Tabs defaultValue="identity" className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Settings Sidebar */}
+        <Tabs defaultValue="account" className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1">
             <div className="bg-card rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow space-y-2">
               <TabsList className="flex flex-col w-full h-auto bg-transparent p-0 space-y-2">
-                <TabsTrigger value="identity" className="w-full gap-3 rounded-2xl justify-start px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:shadow-primary/20">
-                  <span className="inline-flex items-center justify-center rounded-lg bg-muted/60 p-1.5"><User className="w-4 h-4" /></span>
-                  <span className="font-semibold">Identity</span>
+                <TabsTrigger
+                  value="account"
+                  className="w-full flex items-center gap-3 rounded-2xl justify-start px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:shadow-primary/20"
+                >
+                  <span className="inline-flex items-center justify-center rounded-lg bg-muted/60 p-1.5">
+                    <User className="w-4 h-4" />
+                  </span>
+                  <span className="font-semibold">Account</span>
                 </TabsTrigger>
-                <TabsTrigger value="alerts" className="w-full gap-3 rounded-2xl justify-start px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:shadow-primary/20">
-                  <span className="inline-flex items-center justify-center rounded-lg bg-muted/60 p-1.5"><Bell className="w-4 h-4" /></span>
-                  <span className="font-semibold">Alerts</span>
+                <TabsTrigger
+                  value="notifications"
+                  className="w-full flex items-center gap-3 rounded-2xl justify-start px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:shadow-primary/20"
+                >
+                  <span className="inline-flex items-center justify-center rounded-lg bg-muted/60 p-1.5">
+                    <Bell className="w-4 h-4" />
+                  </span>
+                  <span className="font-semibold">Notifications</span>
                 </TabsTrigger>
-                <TabsTrigger value="security" className="w-full gap-3 rounded-2xl justify-start px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:shadow-primary/20">
-                  <span className="inline-flex items-center justify-center rounded-lg bg-muted/60 p-1.5"><Shield className="w-4 h-4" /></span>
+                <TabsTrigger
+                  value="security"
+                  className="w-full flex items-center gap-3 rounded-2xl justify-start px-4 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:shadow-primary/20"
+                >
+                  <span className="inline-flex items-center justify-center rounded-lg bg-muted/60 p-1.5">
+                    <Shield className="w-4 h-4" />
+                  </span>
                   <span className="font-semibold">Security</span>
                 </TabsTrigger>
               </TabsList>
-
               <Separator className="my-4" />
-              <div className="pt-4 mt-4">
-                <Button variant="ghost" onClick={() => logout()} className="w-full gap-3 rounded-2xl justify-start text-destructive hover:text-destructive hover:bg-destructive/10 px-4 py-3">
-                  <span className="inline-flex items-center justify-center rounded-lg bg-destructive/10 p-1.5"><LogOut className="w-4 h-4" /></span>
-                  <span className="font-semibold">Sign Out</span>
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                onClick={logout}
+                className="w-full gap-3 rounded-2xl justify-start text-destructive hover:text-destructive hover:bg-destructive/10 px-4 py-3"
+              >
+                <span className="inline-flex items-center justify-center rounded-lg bg-destructive/10 p-1.5">
+                  <LogOut className="w-4 h-4" />
+                </span>
+                <span className="font-semibold">Sign Out</span>
+              </Button>
             </div>
           </div>
 
           <div className="lg:col-span-3">
-            {/* Identity Form */}
-            <TabsContent value="identity" className="mt-0">
+            <TabsContent value="account" className="mt-0">
               <div className="bg-card rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <User className="w-6 h-6 text-primary" />
-                    </div>
-                    <h3 className="text-h2 font-display text-foreground">IDENTITY MATRIX</h3>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <User className="w-6 h-6 text-primary" />
                   </div>
-                  <StatusBadge variant="success">● Authority Mode</StatusBadge>
+                  <h3 className="text-h2 font-display text-foreground">Account Information</h3>
                 </div>
+                <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold mb-6">
+                  Manage your personal details.
+                </p>
 
-                {/* Profile Picture */}
-                <div className="mb-8">
-                  <div className="flex items-center gap-6">
-                    <div className="relative">
-                      <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center">
-                        <User className="w-12 h-12 text-neutral-400" />
-                      </div>
-                      <Button size="icon" className="absolute bottom-0 right-0 rounded-full">
-                        <Camera className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-bold text-foreground">{user?.name ?? "User"}</h4>
-                      <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                        <span className="w-2 h-2 bg-success rounded-full"></span>
-                        ELITE TIER HOMEOWNER
-                      </p>
-                      <Button variant="ghost" className="mt-2 h-10 px-4 rounded-2xl bg-background/80 backdrop-blur-md border border-border/50 shadow-sm font-semibold text-muted-foreground hover:border-primary/30 hover:bg-primary/[0.05] hover:text-foreground hover:shadow-md transition-all duration-300">
-                        <span className="inline-flex items-center justify-center rounded-lg bg-muted/60 p-1.5 mr-1"><User className="w-3.5 h-3.5 text-primary" /></span>
-                        Update Profile
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Form */}
-                <form className="space-y-6" onSubmit={handleIdentitySubmit}>
+                <form className="space-y-6" onSubmit={handleSubmit}>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                      <Label htmlFor="firstName" className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">First Name</Label>
-                      <Input id="firstName" name="firstName" type="text" defaultValue={firstName} className={errors.firstName ? "border-destructive" : ""} />
-                      {errors.firstName && <p className="text-xs text-destructive mt-1">{errors.firstName}</p>}
+                      <Label
+                        htmlFor="fullName"
+                        className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2"
+                      >
+                        Full Name
+                      </Label>
+                      <Input
+                        id="fullName"
+                        type="text"
+                        value={formValues.fullName}
+                        onChange={(e) => {
+                          updateField("fullName", e.target.value);
+                          setFormErrors((p) => ({ ...p, fullName: "" }));
+                        }}
+                        className={formErrors.fullName ? "border-destructive" : ""}
+                      />
+                      {formErrors.fullName && (
+                        <p className="text-xs text-destructive mt-1">{formErrors.fullName}</p>
+                      )}
                     </div>
                     <div>
-                      <Label htmlFor="lastName" className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Last Name</Label>
-                      <Input id="lastName" name="lastName" type="text" defaultValue={lastName} className={errors.lastName ? "border-destructive" : ""} />
-                      {errors.lastName && <p className="text-xs text-destructive mt-1">{errors.lastName}</p>}
+                      <Label
+                        htmlFor="email"
+                        className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2"
+                      >
+                        Email Address
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formValues.email}
+                        onChange={(e) => {
+                          updateField("email", e.target.value);
+                          setFormErrors((p) => ({ ...p, email: "" }));
+                        }}
+                        className={formErrors.email ? "border-destructive" : ""}
+                      />
+                      {formErrors.email && (
+                        <p className="text-xs text-destructive mt-1">{formErrors.email}</p>
+                      )}
                     </div>
                   </div>
-                  <div>
-                    <Label htmlFor="email" className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Email</Label>
-                    <Input id="email" name="email" type="email" defaultValue={user?.email ?? ""} className={errors.email ? "border-destructive" : ""} />
-                    {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <Label
+                        htmlFor="phone"
+                        className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2"
+                      >
+                        Phone Number
+                      </Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formValues.phone}
+                        onChange={(e) => updateField("phone", e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="phone" className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Phone</Label>
-                    <Input id="phone" name="phone" type="tel" defaultValue={user?.phone ?? ""} />
-                  </div>
-                  <div className="pt-6 flex justify-end">
-                    <Button variant={saved ? "default" : "brand"} type="submit" disabled={saving} className={`h-12 px-6 rounded-2xl ring-1 ring-inset ring-white/15 shadow-lg shadow-primary/20 font-semibold gap-2 min-w-[140px] ${saved ? "bg-success text-success-foreground hover:bg-success ring-success/20 shadow-success/20" : ""}`}>
-                      {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving...</> : saved ? <><Check className="w-4 h-4" />Saved!</> : <><span className="inline-flex items-center justify-center rounded-lg bg-white/15 p-1.5 mr-1"><Check className="w-3.5 h-3.5" strokeWidth={2.5} /></span>Save Changes</>}
+
+                  <div className="pt-6 flex justify-between items-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={handleCancel}
+                      className="h-12 px-5 rounded-2xl bg-background/80 backdrop-blur-md border border-border/50 shadow-sm font-semibold text-muted-foreground hover:border-primary/30 hover:bg-primary/[0.05] hover:text-foreground hover:shadow-md transition-all duration-300"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant={saved ? "default" : "brand"}
+                      type="submit"
+                      disabled={saving}
+                      className={`h-12 px-6 rounded-2xl ring-1 ring-inset ring-white/15 shadow-lg shadow-primary/20 font-semibold gap-2 min-w-[140px] ${
+                        saved
+                          ? "bg-success hover:bg-success text-success-foreground ring-success/20 shadow-success/20"
+                          : ""
+                      }`}
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : saved ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          Saved!
+                        </>
+                      ) : (
+                        <>
+                          <span className="inline-flex items-center justify-center rounded-lg bg-white/15 p-1.5 mr-1">
+                            <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          </span>
+                          Save Changes
+                        </>
+                      )}
                     </Button>
                   </div>
                 </form>
               </div>
             </TabsContent>
 
-            {/* Alerts Tab */}
-            <TabsContent value="alerts" className="mt-0">
+            <TabsContent value="notifications" className="mt-0">
               <div className="bg-card rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-8">
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Bell className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="text-h2 font-display text-foreground">Notification Settings</h3>
+                  <h3 className="text-h2 font-display text-foreground">Notification Preferences</h3>
+                </div>
+                <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold mb-8">
+                  Choose what updates you want to receive.
+                </p>
+
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-border/40 hover:border-border/80 transition-all">
+                    <div className="flex-1 mr-4">
+                      <p className="font-bold text-foreground">Project updates</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Milestones, status changes, and timeline alerts.
+                      </p>
+                    </div>
+                    <Switch checked={notifProject} onCheckedChange={setNotifProject} />
+                  </div>
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-border/40 hover:border-border/80 transition-all">
+                    <div className="flex-1 mr-4">
+                      <p className="font-bold text-foreground">Payment notifications</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Deposits, releases, and invoice reminders.
+                      </p>
+                    </div>
+                    <Switch checked={notifPayment} onCheckedChange={setNotifPayment} />
+                  </div>
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-border/40 hover:border-border/80 transition-all">
+                    <div className="flex-1 mr-4">
+                      <p className="font-bold text-foreground">Message alerts</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        New messages from providers and your team.
+                      </p>
+                    </div>
+                    <Switch checked={notifMessage} onCheckedChange={setNotifMessage} />
+                  </div>
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-border/40 hover:border-border/80 transition-all">
+                    <div className="flex-1 mr-4">
+                      <p className="font-bold text-foreground">Milestone completions</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        When phases are marked complete.
+                      </p>
+                    </div>
+                    <Switch checked={notifMilestone} onCheckedChange={setNotifMilestone} />
+                  </div>
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-border/40 hover:border-border/80 transition-all">
+                    <div className="flex-1 mr-4">
+                      <p className="font-bold text-foreground">Team activity</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Invites, role changes, and collaborator updates.
+                      </p>
+                    </div>
+                    <Switch checked={notifTeam} onCheckedChange={setNotifTeam} />
+                  </div>
                 </div>
 
-                <div className="space-y-4">
-                  {Object.keys(notifications).map((item) => (
-                    <div key={item} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                      <Label htmlFor={`notif-${item}`} className="font-semibold text-muted-foreground cursor-pointer">{item}</Label>
-                      <Switch
-                        id={`notif-${item}`}
-                        checked={notifications[item]}
-                        onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, [item]: checked }))}
-                      />
-                    </div>
-                  ))}
+                <div className="pt-8 flex justify-end">
+                  <Button
+                    variant="brand"
+                    onClick={handleSaveNotifications}
+                    disabled={saving}
+                    className="h-12 px-6 rounded-2xl ring-1 ring-inset ring-white/15 shadow-lg shadow-primary/20 font-semibold gap-2 min-w-[180px]"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <span className="inline-flex items-center justify-center rounded-lg bg-white/15 p-1.5 mr-1">
+                          <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                        </span>
+                        Save Preferences
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </TabsContent>
 
-            {/* Security Tab */}
             <TabsContent value="security" className="mt-0">
               <div className="bg-card rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3 mb-8">
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Shield className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="text-h2 font-display text-foreground">Security Settings</h3>
+                  <h3 className="text-h2 font-display text-foreground">Security</h3>
                 </div>
+                <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold mb-6">
+                  Update your password to keep your account secure.
+                </p>
 
-                <div className="space-y-6">
+                <div className="space-y-5 max-w-xl">
                   <div>
-                    <Label htmlFor="currentPassword" className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                    <Label
+                      htmlFor="currentPassword"
+                      className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2"
+                    >
                       Current Password
                     </Label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                    />
+                    <Input id="currentPassword" type="password" placeholder="Enter current password" />
                   </div>
-                  <div>
-                    <Label htmlFor="newPassword" className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                      New Password
-                    </Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <Label
+                        htmlFor="newPassword"
+                        className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2"
+                      >
+                        New Password
+                      </Label>
+                      <Input id="newPassword" type="password" placeholder="Min. 6 characters" />
+                    </div>
+                    <div>
+                      <Label
+                        htmlFor="confirmPassword"
+                        className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2"
+                      >
+                        Confirm New Password
+                      </Label>
+                      <Input id="confirmPassword" type="password" placeholder="Repeat new password" />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="confirmPassword" className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                      Confirm New Password
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                    />
-                  </div>
-
-                  <div className="pt-6 flex justify-end">
-                    <Button variant="brand" className="h-12 px-6 rounded-2xl ring-1 ring-inset ring-white/15 shadow-lg shadow-primary/20 font-semibold">
-                      <span className="inline-flex items-center justify-center rounded-lg bg-white/15 p-1.5 mr-1"><Shield className="w-3.5 h-3.5" strokeWidth={2.5} /></span>
+                  <div className="pt-4 flex justify-end">
+                    <Button
+                      variant="brand"
+                      className="h-12 px-6 rounded-2xl ring-1 ring-inset ring-white/15 shadow-lg shadow-primary/20 font-semibold gap-2"
+                      onClick={() =>
+                        toast.info("Password change will use Supabase Auth in a future update.")
+                      }
+                    >
+                      <span className="inline-flex items-center justify-center rounded-lg bg-white/15 p-1.5 mr-1">
+                        <Shield className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      </span>
                       Update Password
                     </Button>
                   </div>

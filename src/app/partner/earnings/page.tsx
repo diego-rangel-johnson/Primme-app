@@ -19,6 +19,8 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/status-badge";
+import { useReferrals } from "@/lib/supabase/hooks";
+import { useSession } from "@/context/session-context";
 
 const monthlyEarnings = [
   { month: "Jul", amount: 1200 },
@@ -31,6 +33,19 @@ const MONTHLY_GOAL = 5000;
 const CURRENT_MONTH_EARNED = 3450;
 
 export default function PartnerEarningsPage() {
+  const { user } = useSession();
+  const { data: referrals } = useReferrals(user?.id);
+
+  const totalEarned = referrals.filter(r => r.status === "converted").reduce((s, r) => s + r.commission, 0);
+
+  const mappedPayouts = referrals.filter(r => r.status === "converted" && r.commission > 0).map((r, i) => ({
+    id: `TXN-${String(i + 1).padStart(3, "0")}`,
+    amount: `$${r.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    date: new Date(r.created_at!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    method: "Bank Transfer",
+    status: "COMPLETED" as const,
+  }));
+
   const payoutHistory = [
     { id: "TXN-8291", amount: "$1,250.00", date: "Oct 24, 2024", method: "Bank Transfer (**** 4291)", status: "COMPLETED" },
     { id: "TXN-8012", amount: "$850.00", date: "Oct 12, 2024", method: "PayPal (alex***@gmail.com)", status: "COMPLETED" },
@@ -99,7 +114,7 @@ export default function PartnerEarningsPage() {
                 <DollarSign className="w-4 h-4 text-primary-light" /> Available Balance
               </span>
               <p className="text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-ink-foreground to-ink-foreground/70 mb-3">
-                $2,140<span className="text-primary/80">.50</span>
+                ${totalEarned.toLocaleString(undefined, {minimumFractionDigits: 2})}
               </p>
               <div className="flex flex-wrap items-center gap-3 mb-6">
                 <div className="px-3 py-1.5 bg-success/10 text-success rounded-lg text-xs font-black tracking-widest flex items-center gap-1.5 border border-success/20 backdrop-blur-md shadow-card">
@@ -229,7 +244,7 @@ export default function PartnerEarningsPage() {
           </div>
 
           <div className="space-y-4">
-            {payoutHistory.map((payout) => (
+            {(mappedPayouts.length > 0 ? mappedPayouts : payoutHistory).map((payout) => (
               <div
                 key={payout.id}
                 className="group flex flex-col md:flex-row md:items-center justify-between p-5 lg:px-6 rounded-2xl border border-border/40 hover:border-border/80 hover:shadow-md hover:bg-muted/30 transition-all duration-300 cursor-pointer bg-background/50"

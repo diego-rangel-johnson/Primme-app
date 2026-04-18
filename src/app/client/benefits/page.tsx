@@ -37,6 +37,7 @@ import { CategoryTabs, type CategoryTab } from "@/components/benefits/category-t
 import { BenefitCard } from "@/components/benefits/benefit-card";
 import { PerkClaimModal } from "@/components/benefits/perk-claim-modal";
 import { CountdownTimer } from "@/components/benefits/countdown-timer";
+import { useBenefits } from "@/lib/supabase/hooks";
 
 // ── Mock Data ────────────────────────────────────────────────────
 
@@ -251,17 +252,49 @@ const fadeUp = {
 // ── Page Component ───────────────────────────────────────────────
 
 export default function HomeownerBenefitsPage() {
+  const { data: dbBenefits } = useBenefits();
+
   const [claimedDeals, setClaimedDeals] = useState<Set<string>>(new Set());
   const [claimModal, setClaimModal] = useState<{ open: boolean; perk: { title: string; partner: string; discount: string; code: string } | null }>({
     open: false,
     perk: null,
   });
 
+  const mappedDeals: DealItem[] = dbBenefits.slice(0, 4).map(b => ({
+    id: b.id,
+    partner: b.provider_name ?? "Primme Partner",
+    partnerIcon: Sparkles,
+    title: b.title,
+    discount: `${b.discount_percent}% OFF`,
+    description: b.description ?? "",
+    expiresAt: new Date(Date.now() + 30 * 86400000),
+    category: (b.category ?? "materials") as "materials" | "design" | "insurance" | "financing" | "lifestyle",
+  }));
+
+  const mappedPerks: Record<string, PerkItem[]> = {};
+  dbBenefits.forEach((b, i) => {
+    const cat = b.category ?? "materials";
+    if (!mappedPerks[cat]) mappedPerks[cat] = [];
+    mappedPerks[cat].push({
+      id: b.id,
+      icon: Sparkles,
+      title: b.title,
+      partner: b.provider_name ?? "Primme",
+      discount: `${b.discount_percent}% OFF`,
+      description: b.description ?? "",
+      code: `PRIMME-${b.discount_percent}`,
+      isNew: i < 3,
+    });
+  });
+
+  const activeDeals = mappedDeals.length > 0 ? mappedDeals : featuredDeals;
+  const activePerks = Object.keys(mappedPerks).length > 0 ? mappedPerks : perksByCategory;
+
   const progress = (CURRENT_SPEND / NEXT_TIER_THRESHOLD) * 100;
 
   const handleClaimDeal = (id: string) => {
     setClaimedDeals((prev) => new Set(prev).add(id));
-    const deal = featuredDeals.find((d) => d.id === id);
+    const deal = activeDeals.find((d) => d.id === id);
     if (deal) {
       toast.success(`${deal.title} claimed! Check your email for details.`);
     }
@@ -275,52 +308,26 @@ export default function HomeownerBenefitsPage() {
   };
 
   const dealsWithClaimState = useMemo(
-    () => featuredDeals.map((d) => ({ ...d, claimed: claimedDeals.has(d.id) })),
-    [claimedDeals]
+    () => activeDeals.map((d) => ({ ...d, claimed: claimedDeals.has(d.id) })),
+    [claimedDeals, activeDeals]
   );
 
-  const categoryTabs: CategoryTab[] = [
-    {
-      id: "materials",
-      label: "Materials & Supplies",
-      icon: Paintbrush,
-      content: (
-        <PerkGrid perks={perksByCategory.materials} onClaim={handleClaimPerk} />
-      ),
-    },
-    {
-      id: "design",
-      label: "Design Services",
-      icon: Palette,
-      content: (
-        <PerkGrid perks={perksByCategory.design} onClaim={handleClaimPerk} />
-      ),
-    },
-    {
-      id: "insurance",
-      label: "Insurance & Warranty",
-      icon: ShieldCheck,
-      content: (
-        <PerkGrid perks={perksByCategory.insurance} onClaim={handleClaimPerk} />
-      ),
-    },
-    {
-      id: "financing",
-      label: "Financing",
-      icon: Landmark,
-      content: (
-        <PerkGrid perks={perksByCategory.financing} onClaim={handleClaimPerk} />
-      ),
-    },
-    {
-      id: "lifestyle",
-      label: "Lifestyle",
-      icon: Heart,
-      content: (
-        <PerkGrid perks={perksByCategory.lifestyle} onClaim={handleClaimPerk} />
-      ),
-    },
+  const categoryTabConfig: { id: string; label: string; icon: typeof Paintbrush }[] = [
+    { id: "materials", label: "Materials & Supplies", icon: Paintbrush },
+    { id: "design", label: "Design Services", icon: Palette },
+    { id: "insurance", label: "Insurance & Warranty", icon: ShieldCheck },
+    { id: "financing", label: "Financing", icon: Landmark },
+    { id: "lifestyle", label: "Lifestyle", icon: Heart },
   ];
+
+  const categoryTabs: CategoryTab[] = categoryTabConfig
+    .filter((tab) => activePerks[tab.id])
+    .map((tab) => ({
+      ...tab,
+      content: (
+        <PerkGrid perks={activePerks[tab.id]} onClaim={handleClaimPerk} />
+      ),
+    }));
 
   return (
     <div className="min-h-screen bg-muted/20 pb-20">

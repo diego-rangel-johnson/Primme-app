@@ -37,6 +37,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { CountUp } from "@/components/ui/count-up";
 import { useSession } from "@/context/session-context";
 import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState } from "react";
 
 const stats = [
@@ -120,13 +121,20 @@ export default function PartnerProfilePage() {
           <div className="flex flex-col md:flex-row md:items-center gap-6 lg:gap-8">
             {/* Avatar */}
             <div className="relative group/avatar shrink-0">
-              <div className="w-28 h-28 lg:w-32 lg:h-32 rounded-2xl p-1 bg-gradient-to-br from-primary via-primary-light to-primary lg:animate-[spin_6s_linear_infinite] [animation-play-state:paused] lg:group-hover/avatar:[animation-play-state:running]">
+              <div className="w-28 h-28 lg:w-32 lg:h-32 rounded-2xl p-1 bg-gradient-to-br from-primary via-primary-light to-primary">
                 <div className="w-full h-full rounded-xl bg-background p-0.5">
-                  <img
-                    src="https://i.pravatar.cc/150?img=15"
-                    alt={user?.name ?? "Profile"}
-                    className="w-full h-full rounded-[10px] object-cover"
-                  />
+                  <Avatar className="w-full h-full rounded-[10px]">
+                    {user?.avatar_url ? (
+                      <AvatarImage
+                        src={user.avatar_url}
+                        alt={user.name ?? "Profile"}
+                        className="object-cover"
+                      />
+                    ) : null}
+                    <AvatarFallback className="rounded-[10px] bg-primary/10 text-primary font-bold text-2xl">
+                      {user?.initials ?? "?"}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
               </div>
               <TooltipProvider>

@@ -24,6 +24,7 @@ import { BlurFade } from "@/components/ui/blur-fade";
 import { ActivityFeed, type ActivityItem } from "@/components/provider/activity-feed";
 import { useSession } from "@/context/session-context";
 import { getGreeting } from "@/lib/constants";
+import { useProjects, usePayments } from "@/lib/supabase/hooks";
 
 const ACTIVITY: ActivityItem[] = [
   { id: "a1", icon: "milestone", text: "First coat completed - Living Room", time: "2h ago", highlight: true },
@@ -52,6 +53,36 @@ const fadeUp = {
 export default function HomeownerDashboard() {
   const { user } = useSession();
   const firstName = user?.name.split(" ")[0] ?? "there";
+  const { data: projects } = useProjects(user?.id);
+  const { data: payments } = usePayments(user?.id);
+  const activeProjects = projects.filter(p => ["active", "in_progress"].includes(p.status));
+  const completedPayments = payments.filter(p => p.status === "completed");
+  const pendingPayments = payments.filter(p => p.status === "pending");
+  const totalInvested = completedPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalPending = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
+  const upNextProject = activeProjects[0];
+
+  const dynamicActivity: ActivityItem[] = [
+    ...completedPayments.slice(0, 2).map((p, i) => ({
+      id: `pay-${i}`,
+      icon: "payment" as const,
+      text: `Payment ${p.status}: $${p.amount.toLocaleString()}${p.description ? ' — ' + p.description : ''}`,
+      time: new Date(p.created_at!).toLocaleDateString(),
+    })),
+    ...activeProjects.slice(0, 2).map((p, i) => ({
+      id: `proj-${i}`,
+      icon: "milestone" as const,
+      text: `${p.title} — ${p.progress}% complete`,
+      time: new Date(p.updated_at ?? p.created_at!).toLocaleDateString(),
+      highlight: true,
+    })),
+    ...pendingPayments.slice(0, 1).map((p, i) => ({
+      id: `pend-${i}`,
+      icon: "lead" as const,
+      text: `Pending payment: $${p.amount.toLocaleString()}${p.description ? ' — ' + p.description : ''}`,
+      time: new Date(p.created_at!).toLocaleDateString(),
+    })),
+  ];
 
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -83,8 +114,8 @@ export default function HomeownerDashboard() {
               </BlurFade>
               <BlurFade delay={0.15} inView>
                 <p className="text-muted-foreground font-medium mt-1.5">
-                  You have <span className="text-foreground font-bold">3 active projects</span> and{" "}
-                  <span className="text-primary font-bold">$12,450 invested</span> so far.
+                  You have <span className="text-foreground font-bold">{activeProjects.length} active projects</span> and{" "}
+                  <span className="text-primary font-bold">${totalInvested.toLocaleString()} invested</span> so far.
                 </p>
               </BlurFade>
             </div>
@@ -135,7 +166,7 @@ export default function HomeownerDashboard() {
             <Link href="/client/payments" className="block h-full">
               <StatCard
                 title="Total Invested"
-                value="$12,450"
+                value={`$${totalInvested.toLocaleString()}`}
                 icon={DollarSign}
                 variant="hero"
                 trend={{ value: 8, label: "from last month", isPositive: true }}
@@ -149,7 +180,7 @@ export default function HomeownerDashboard() {
             <Link href="/client/projects" className="block h-full">
               <StatCard
                 title="Active Projects"
-                value="3"
+                value={String(activeProjects.length)}
                 icon={FolderOpen}
                 highlight
                 className="h-full hover:-translate-y-1 transition-transform"
@@ -161,7 +192,7 @@ export default function HomeownerDashboard() {
             <Link href="/client/payments" className="block h-full">
               <StatCard
                 title="Pending Payments"
-                value="$2,450"
+                value={`$${totalPending.toLocaleString()}`}
                 icon={CreditCard}
                 className="h-full hover:-translate-y-1 transition-transform"
               />
@@ -177,7 +208,7 @@ export default function HomeownerDashboard() {
                 <div
                   className="absolute inset-0 opacity-50 group-hover:opacity-60 group-hover:scale-105 transition-all duration-1000"
                   style={{
-                    backgroundImage: "url(https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=500&fit=crop)",
+                    backgroundImage: `url(${upNextProject?.thumbnail_url ?? "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=500&fit=crop"})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }}
@@ -202,16 +233,16 @@ export default function HomeownerDashboard() {
 
                   <div>
                     <h2 className="text-h2 font-display text-ink-foreground tracking-tight mb-4">
-                      Exterior Painting
+                      {upNextProject?.title ?? "Exterior Painting"}
                     </h2>
                     <div className="flex items-center gap-4">
                       <div className="flex-1 max-w-xs">
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-label text-ink-muted">Progress</span>
-                          <span className="text-sm font-black text-primary-light">75%</span>
+                          <span className="text-sm font-black text-primary-light">{upNextProject?.progress ?? 75}%</span>
                         </div>
                         <div className="h-2.5 bg-white/10 rounded-full overflow-hidden border border-white/5">
-                          <div className="h-full w-3/4 bg-gradient-to-r from-primary to-primary-light rounded-full shadow-[0_0_10px_hsl(var(--primary)/0.5)]" />
+                          <div className="h-full bg-gradient-to-r from-primary to-primary-light rounded-full shadow-[0_0_10px_hsl(var(--primary)/0.5)]" style={{ width: `${upNextProject?.progress ?? 75}%` }} />
                         </div>
                       </div>
                       <div className="hidden sm:flex items-center gap-2 py-2 px-4 rounded-xl bg-white/10 backdrop-blur-md text-ink-foreground text-xs font-bold border border-white/10 group-hover:bg-primary group-hover:border-primary/50 transition-all duration-normal">
@@ -250,7 +281,7 @@ export default function HomeownerDashboard() {
                 </Link>
               </div>
 
-              <ActivityFeed items={ACTIVITY} />
+              <ActivityFeed items={dynamicActivity.length > 0 ? dynamicActivity : ACTIVITY} />
             </SurfaceCard>
           </motion.div>
 

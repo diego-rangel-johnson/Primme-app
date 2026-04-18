@@ -28,6 +28,7 @@ import { ProjectTimeline, type TimelineProject } from "@/components/provider/pro
 import { ActivityFeed, type ActivityItem } from "@/components/provider/activity-feed";
 import { useSession } from "@/context/session-context";
 import { getGreeting } from "@/lib/constants";
+import { useProjectsForProvider } from "@/lib/supabase/hooks";
 
 const PROJECTS: TimelineProject[] = [
   {
@@ -135,6 +136,22 @@ const fadeUp = {
 export default function ProviderDashboard() {
   const { user } = useSession();
   const firstName = user?.name.split(" ")[0] ?? "there";
+  const { data: projects } = useProjectsForProvider(user?.id);
+  const activeProjects = projects.filter(p => ["active", "in_progress"].includes(p.status));
+  const completedProjects = projects.filter(p => p.status === "completed");
+
+  const timelineProjects: TimelineProject[] = projects.map((p) => ({
+    id: p.id.slice(0, 8).toUpperCase(),
+    title: p.title,
+    location: p.address ?? "Miami, FL",
+    status: p.status === "in_progress" ? "in-progress" : p.status === "active" ? "planning" : p.status as "completed",
+    statusLabel: p.status === "in_progress" ? "IN PROGRESS" : p.status === "active" ? "PLANNING" : p.status.toUpperCase(),
+    progress: p.progress,
+    dueDate: p.status === "completed" ? "Completed" : `Due ${new Date(p.updated_at ?? p.created_at!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+    daysLeft: p.status === "completed" ? undefined : Math.max(0, Math.ceil((new Date(p.timeline ?? '').getTime() - Date.now()) / 86400000)) || undefined,
+    image: p.thumbnail_url ?? "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800",
+    client: "James W.",
+  }));
 
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -168,7 +185,7 @@ export default function ProviderDashboard() {
               </BlurFade>
               <BlurFade delay={0.15} inView>
                 <p className="text-muted-foreground font-medium mt-1.5">
-                  You have <span className="text-foreground font-bold">3 active projects</span> and{" "}
+                  You have <span className="text-foreground font-bold">{activeProjects.length} active projects</span> and{" "}
                   <span className="text-primary font-bold">2 new leads</span> waiting.
                 </p>
               </BlurFade>
@@ -246,7 +263,7 @@ export default function ProviderDashboard() {
             <Link href="/provider/projects" className="block h-full">
               <StatCard
                 title="Active Projects"
-                value="3"
+                value={String(activeProjects.length)}
                 icon={Zap}
                 highlight
                 className="h-full hover:-translate-y-1 transition-transform"
@@ -277,7 +294,7 @@ export default function ProviderDashboard() {
               </Link>
             </div>
 
-            <ProjectTimeline projects={PROJECTS} />
+            <ProjectTimeline projects={timelineProjects.length > 0 ? timelineProjects : PROJECTS} />
           </SurfaceCard>
         </motion.div>
 

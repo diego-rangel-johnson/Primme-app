@@ -27,6 +27,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { SurfaceCard } from "@/components/ui/surface-card";
 import { useSession } from "@/context/session-context";
 import { getGreeting } from "@/lib/constants";
+import { useReferrals } from "@/lib/supabase/hooks";
 
 const CURRENT_REFERRALS = 42;
 const NEXT_TIER_THRESHOLD = 50;
@@ -58,6 +59,21 @@ export default function PartnerDashboard() {
   const greeting = getGreeting();
   const firstName = user?.name.split(" ")[0] ?? "Partner";
   const [copied, setCopied] = useState(false);
+  const { data: referrals } = useReferrals(user?.id);
+  const convertedReferrals = referrals.filter(r => r.status === "converted");
+  const totalEarnings = convertedReferrals.reduce((sum, r) => sum + r.commission, 0);
+  const totalReferralCount = referrals.length;
+  const currentRefs = totalReferralCount || CURRENT_REFERRALS;
+
+  const recentReferralsMapped = referrals.slice(0, 2).map((r, i) => ({
+    id: i + 1,
+    name: r.referred_name ?? r.referred_email,
+    type: i === 0 ? "HOMEOWNER" : "SERVICE PROVIDER",
+    joined: `Joined ${new Date(r.created_at!).toLocaleDateString()}`,
+    amount: `$${r.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    status: r.status === "converted" ? "VERIFIED" : "PENDING",
+    indicator: r.status === "converted" ? "verified" : "pending",
+  }));
 
   const handleCopy = async () => {
     try {
@@ -96,7 +112,7 @@ export default function PartnerDashboard() {
     },
   ];
 
-  const progress = (CURRENT_REFERRALS / NEXT_TIER_THRESHOLD) * 100;
+  const progress = (currentRefs / NEXT_TIER_THRESHOLD) * 100;
   const maxValue = Math.max(...chartData.map((d) => d.value));
   const chartHeight = 120;
   const chartWidth = 280;
@@ -179,7 +195,7 @@ export default function PartnerDashboard() {
             <Link href="/partner/referrals" className="block">
               <StatCard
                 title="Active Referrals"
-                value="42"
+                value={String(totalReferralCount)}
                 icon={Link2}
                 trend={{ value: 8.2, label: "New users", isPositive: true }}
                 className="h-full hover:-translate-y-1 transition-transform"
@@ -190,7 +206,7 @@ export default function PartnerDashboard() {
             <Link href="/partner/earnings" className="block">
               <StatCard
                 title="Total Earnings"
-                value="$3,450"
+                value={`$${totalEarnings.toLocaleString()}`}
                 icon={DollarSign}
                 trend={{ value: 19.3, label: "Available", isPositive: true }}
                 className="h-full hover:-translate-y-1 transition-transform"
@@ -267,7 +283,7 @@ export default function PartnerDashboard() {
                 </Link>
               </div>
               <div className="space-y-4">
-                {recentReferrals.map((referral) => (
+                {(recentReferralsMapped.length > 0 ? recentReferralsMapped : recentReferrals).map((referral) => (
                   <Link
                     key={referral.id}
                     href="/partner/referrals"
@@ -327,7 +343,7 @@ export default function PartnerDashboard() {
 
                 <div className="mb-4">
                   <div className="flex justify-between text-sm mb-1.5">
-                    <span className="font-bold text-foreground">{CURRENT_REFERRALS} referrals</span>
+                    <span className="font-bold text-foreground">{currentRefs} referrals</span>
                     <span className="font-bold text-muted-foreground">{NEXT_TIER_THRESHOLD}</span>
                   </div>
                   <div className="h-3 bg-muted rounded-full overflow-hidden border border-border/50">
@@ -341,7 +357,7 @@ export default function PartnerDashboard() {
                 </div>
 
                 <p className="text-sm text-muted-foreground font-medium mb-5">
-                  <span className="text-primary font-bold">{NEXT_TIER_THRESHOLD - CURRENT_REFERRALS}</span> referrals to Silver (10%)
+                  <span className="text-primary font-bold">{NEXT_TIER_THRESHOLD - currentRefs}</span> referrals to Silver (10%)
                 </p>
 
                 <Button

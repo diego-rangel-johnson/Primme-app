@@ -42,6 +42,7 @@ import { BenefitCard } from "@/components/benefits/benefit-card";
 import { CategoryTabs, type CategoryTab } from "@/components/benefits/category-tabs";
 import { SavingsCalculator } from "@/components/benefits/savings-calculator";
 import { ProgressRing } from "@/components/benefits/progress-ring";
+import { useBenefits } from "@/lib/supabase/hooks";
 
 // ── Mock Data ────────────────────────────────────────────────────
 
@@ -244,6 +245,8 @@ const stagger = {
 // ── Page Component ───────────────────────────────────────────────
 
 export default function ProviderBenefitsPage() {
+  const { data: dbBenefits } = useBenefits();
+
   const tierProgress =
     (PROVIDER_STATS.projectsCompleted / PROVIDER_STATS.nextTierProjects) * 100;
 
@@ -251,38 +254,36 @@ export default function ProviderBenefitsPage() {
     toast.success(`${title} activated! Check your dashboard for details.`);
   };
 
-  const savingsTabs: CategoryTab[] = [
-    {
-      id: "materials",
-      label: "Materials & Tools",
-      icon: Hammer,
-      content: <SavingsGrid items={savingsByCategory.materials} />,
-    },
-    {
-      id: "insurance",
-      label: "Insurance & Bonding",
-      icon: ShieldCheck,
-      content: <SavingsGrid items={savingsByCategory.insurance} />,
-    },
-    {
-      id: "software",
-      label: "Software & SaaS",
-      icon: Monitor,
-      content: <SavingsGrid items={savingsByCategory.software} />,
-    },
-    {
-      id: "vehicle",
-      label: "Vehicle & Fleet",
-      icon: Truck,
-      content: <SavingsGrid items={savingsByCategory.vehicle} />,
-    },
-    {
-      id: "training",
-      label: "Education & Training",
-      icon: GraduationCap,
-      content: <SavingsGrid items={savingsByCategory.training} />,
-    },
+  const mappedSavings: Record<string, SavingsPartner[]> = {};
+  dbBenefits.forEach(b => {
+    const cat = b.category ?? "materials";
+    if (!mappedSavings[cat]) mappedSavings[cat] = [];
+    mappedSavings[cat].push({
+      icon: Sparkles,
+      title: b.title,
+      partner: b.provider_name ?? "Primme",
+      discount: `${b.discount_percent}% OFF`,
+      annualSaving: `$${Math.round(b.discount_percent * 50)}`,
+      description: b.description ?? "",
+    });
+  });
+
+  const activeSavings = Object.keys(mappedSavings).length > 0 ? mappedSavings : savingsByCategory;
+
+  const savingsTabConfig: { id: string; label: string; icon: typeof Hammer }[] = [
+    { id: "materials", label: "Materials & Tools", icon: Hammer },
+    { id: "insurance", label: "Insurance & Bonding", icon: ShieldCheck },
+    { id: "software", label: "Software & SaaS", icon: Monitor },
+    { id: "vehicle", label: "Vehicle & Fleet", icon: Truck },
+    { id: "training", label: "Education & Training", icon: GraduationCap },
   ];
+
+  const savingsTabs: CategoryTab[] = savingsTabConfig
+    .filter((tab) => activeSavings[tab.id])
+    .map((tab) => ({
+      ...tab,
+      content: <SavingsGrid items={activeSavings[tab.id]} />,
+    }));
 
   return (
     <div className="min-h-screen bg-muted/20 pb-20">

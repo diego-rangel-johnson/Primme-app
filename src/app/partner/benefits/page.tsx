@@ -35,6 +35,7 @@ import {
   Timer,
   Copy,
   MessageSquare,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -46,6 +47,7 @@ import { ProgressRing } from "@/components/benefits/progress-ring";
 import { BoosterBadge } from "@/components/benefits/booster-badge";
 import { CountdownTimer } from "@/components/benefits/countdown-timer";
 import { BenefitCard } from "@/components/benefits/benefit-card";
+import { useBenefits } from "@/lib/supabase/hooks";
 
 // ── Mock Data ────────────────────────────────────────────────────
 
@@ -213,8 +215,22 @@ const fadeUp = {
 // ── Page Component ───────────────────────────────────────────────
 
 export default function PartnerBenefitsPage() {
+  const { data: dbBenefits } = useBenefits();
+
   const progress = (CURRENT_REFERRALS / NEXT_TIER_THRESHOLD) * 100;
   const [copied, setCopied] = useState(false);
+
+  const perkIcons = [Gift, Star, Shield, Zap, Award, CreditCard] as const;
+  const mappedPerks = dbBenefits.map((b, i) => ({
+    id: b.id,
+    icon: perkIcons[i % perkIcons.length],
+    title: b.title,
+    points: `${Math.round(b.discount_percent * 10).toLocaleString()} pts`,
+    description: b.description ?? "",
+    tier: b.tier_required ?? "bronze",
+  }));
+
+  const activePerksMarketplace = mappedPerks.length > 0 ? mappedPerks : perksMarketplace;
 
   const handleCopyLink = async () => {
     try {
@@ -648,7 +664,7 @@ export default function PartnerBenefitsPage() {
             Redeem your points for exclusive rewards (Silver+ tiers)
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {perksMarketplace.map((perk, idx) => {
+            {activePerksMarketplace.map((perk, idx) => {
               const PerkIcon = perk.icon;
               const isLocked = TIER_NAME === "Bronze" && perk.tier !== "Bronze";
               return (

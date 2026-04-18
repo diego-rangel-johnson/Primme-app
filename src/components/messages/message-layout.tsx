@@ -21,6 +21,10 @@ interface MessageLayoutProps {
   title?: string;
   emptyTitle?: string;
   emptyDescription?: string;
+  externalMessages?: ChatMessageData[];
+  onSend?: (text: string, conversationId: string) => void;
+  onSelectConversation?: (id: string) => void;
+  selectedConversationId?: string | null;
 }
 
 export function MessageLayout({
@@ -33,23 +37,30 @@ export function MessageLayout({
   title,
   emptyTitle,
   emptyDescription,
+  externalMessages,
+  onSend,
+  onSelectConversation,
+  selectedConversationId,
 }: MessageLayoutProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(
+  const [internalSelectedId, setInternalSelectedId] = useState<string | null>(
     conversations[0]?.id ?? null
   );
+  const selectedId = selectedConversationId !== undefined ? selectedConversationId : internalSelectedId;
   const [userMessages, setUserMessages] = useState<Record<string, ChatMessageData[]>>({});
   const [mobileShowChat, setMobileShowChat] = useState(false);
 
   const currentContact = conversations.find((c) => c.id === selectedId) ?? null;
 
-  const allMessages: ChatMessageData[] = selectedId
+  const fallbackMessages: ChatMessageData[] = selectedId
     ? [...(initialMessages[selectedId] ?? []), ...(userMessages[selectedId] ?? [])]
     : [];
+  const allMessages = externalMessages && externalMessages.length > 0 ? externalMessages : fallbackMessages;
 
   const handleSelect = useCallback((id: string) => {
-    setSelectedId(id);
+    setInternalSelectedId(id);
+    onSelectConversation?.(id);
     setMobileShowChat(true);
-  }, []);
+  }, [onSelectConversation]);
 
   const handleBack = useCallback(() => {
     setMobileShowChat(false);
@@ -58,6 +69,10 @@ export function MessageLayout({
   const handleSend = useCallback(
     (text: string) => {
       if (!selectedId) return;
+      if (onSend) {
+        onSend(text, selectedId);
+        return;
+      }
       const now = new Date();
       const h = now.getHours();
       const m = now.getMinutes().toString().padStart(2, "0");
@@ -74,7 +89,7 @@ export function MessageLayout({
         [selectedId]: [...(prev[selectedId] ?? []), newMsg],
       }));
     },
-    [selectedId]
+    [selectedId, onSend]
   );
 
   const actions = currentContact && headerActions ? headerActions(currentContact) : [];

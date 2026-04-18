@@ -11,10 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/status-badge";
+import { useProject, useMilestones, useDocuments, useProjectMembers } from "@/lib/supabase/hooks";
 
-/* ─── Mock Data ─── */
+/* ─── Fallback Mock Data ─── */
 
-const milestones = [
+const fallbackMilestones = [
   { id: 1, phase: "Site Inspection & Estimate", status: "completed", date: "OCT 20", amount: "$1,500", description: "Initial walkthrough, surface assessment, and detailed quote preparation." },
   { id: 2, phase: "Surface Preparation", status: "completed", date: "OCT 28", amount: "$2,500", description: "Power washing, scraping, sanding, priming, and masking." },
   { id: 3, phase: "First Coat Application", status: "active", date: "NOV 10", amount: "$3,500", subtitle: "IN PROGRESS", description: "Full first coat on all exterior surfaces including trim and fascia." },
@@ -22,13 +23,13 @@ const milestones = [
   { id: 5, phase: "Client Walkthrough & Sign-off", status: "upcoming", date: "DEC 01", amount: "$3,500", description: "Final review with homeowner, punch list, and project close-out." },
 ];
 
-const crewMembers = [
+const fallbackCrewMembers = [
   { name: "Carlos Martinez", role: "Lead Painter", img: "https://i.pravatar.cc/150?img=14", online: true },
   { name: "James Wilson", role: "Painter", img: "https://i.pravatar.cc/150?img=15", online: true },
   { name: "Alex Chen", role: "Prep Specialist", img: "https://i.pravatar.cc/150?img=16", online: false },
 ];
 
-const documents = [
+const fallbackDocuments: { name: string; type: "contract" | "invoice" | "photo" | "report"; date: string; size: string }[] = [
   { name: "Signed Contract", type: "contract", date: "Oct 15, 2024", size: "2.4 MB" },
   { name: "Detailed Estimate", type: "invoice", date: "Oct 18, 2024", size: "1.1 MB" },
   { name: "Progress Photos - Week 1", type: "photo", date: "Oct 28, 2024", size: "12.3 MB" },
@@ -58,10 +59,43 @@ export default function ProviderProjectDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
+  const { data: project } = useProject(id);
+  const { data: dbMilestones } = useMilestones(id);
+  const { data: dbDocuments } = useDocuments(id);
+  const { data: dbMembers } = useProjectMembers(id);
+
+  const mappedMilestones = dbMilestones.map((m, i) => ({
+    id: i + 1,
+    phase: m.title,
+    status: m.status === "in_progress" ? "active" as const : m.status === "pending" ? "upcoming" as const : "completed" as const,
+    date: m.due_date ? new Date(m.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase() : "TBD",
+    amount: project ? `$${Math.round((project.budget ?? 0) / dbMilestones.length).toLocaleString()}` : "—",
+    description: m.title,
+    subtitle: m.status === "in_progress" ? "IN PROGRESS" : undefined,
+  }));
+
+  const mappedCrew = dbMembers.map((m) => ({
+    name: m.profile?.name ?? "Team Member",
+    role: m.role_in_project === "contractor" ? "Lead Contractor" : m.role_in_project === "owner" ? "Homeowner" : m.role_in_project,
+    img: m.profile?.avatar_url ?? `https://i.pravatar.cc/150?u=${m.user_id}`,
+    online: true,
+  }));
+
+  const mappedDocs = dbDocuments.map((d) => ({
+    name: d.name,
+    type: (d.type ?? "report") as "contract" | "invoice" | "photo" | "report",
+    date: new Date(d.created_at!).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    size: "—",
+  }));
+
+  const milestones = mappedMilestones.length > 0 ? mappedMilestones : fallbackMilestones;
+  const crewMembers = mappedCrew.length > 0 ? mappedCrew : fallbackCrewMembers;
+  const documents = mappedDocs.length > 0 ? mappedDocs : fallbackDocuments;
+
+  const totalContract = project?.budget ?? 15200;
   const completedCount = milestones.filter((m) => m.status === "completed").length;
-  const progressPct = Math.round((completedCount / milestones.length) * 100 + (milestones.some((m) => m.status === "active") ? 10 : 0));
-  const totalContract = 15200;
-  const paidOut = 8500;
+  const progressPct = project?.progress ?? Math.round((completedCount / milestones.length) * 100 + (milestones.some((m) => m.status === "active") ? 10 : 0));
+  const paidOut = Math.round(totalContract * (completedCount / milestones.length));
 
   return (
     <Tabs defaultValue="overview" className="min-h-screen bg-muted/20 flex flex-col">
@@ -126,12 +160,12 @@ export default function ProviderProjectDetailPage() {
                 PRJ-721
               </span>
               <span className="text-white/60 text-sm font-semibold flex items-center gap-1.5">
-                <MapPin className="w-4 h-4" /> Malibu, CA
+                <MapPin className="w-4 h-4" /> {project?.address ?? "Malibu, CA"}
               </span>
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white mb-3 tracking-tight leading-[1.1]">
-              Full Home <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-light">Repaint</span>
+              {(project?.title ?? "Full Home Repaint").split(" ").slice(0, -1).join(" ")} <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-light">{(project?.title ?? "Full Home Repaint").split(" ").slice(-1)[0]}</span>
             </h1>
             <p className="text-white/50 text-lg font-semibold mb-6">
               Project is <span className="text-primary font-bold">{progressPct}%</span> complete &middot; {milestones.length - completedCount} milestones remaining

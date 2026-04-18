@@ -5,8 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/status-badge";
 import { toast } from "sonner";
+import { usePayments } from "@/lib/supabase/hooks";
+import { useSession } from "@/context/session-context";
 
 export default function EarningsPage() {
+  const { user } = useSession();
+  const { data: dbPayments } = usePayments(user?.id);
+
+  const mappedTransactions = dbPayments.filter(p => p.status === "completed").map((p, i) => ({
+    id: i + 1,
+    name: p.description ?? "Payment",
+    date: new Date(p.created_at!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    amount: `$${p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    status: "COMPLETED",
+  }));
+
+  const totalGross = dbPayments.filter(p => p.status === "completed").reduce((s, p) => s + p.amount, 0);
+  const availableBalance = dbPayments.filter(p => p.status === "pending").reduce((s, p) => s + p.amount, 0);
   const transactions = [
     {
       id: 1,
@@ -127,7 +142,7 @@ export default function EarningsPage() {
             </div>
             <div className="relative z-10">
               <p className="text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-ink-foreground to-ink-foreground/70">
-                $4,260.00
+                ${availableBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}
               </p>
               <p className="text-sm font-bold text-neutral-500 mt-2">Cleared for withdrawal</p>
             </div>
@@ -164,7 +179,7 @@ export default function EarningsPage() {
               </div>
               <div>
                 <div className="text-5xl font-black tracking-tighter text-foreground">
-                  $142,850.00
+                  ${totalGross.toLocaleString(undefined, {minimumFractionDigits: 2})}
                 </div>
                 <p className="text-sm font-bold text-muted-foreground mt-2">Versus previous month</p>
               </div>
@@ -191,7 +206,7 @@ export default function EarningsPage() {
             </div>
 
             <div className="space-y-4">
-              {transactions.map((transaction) => (
+              {(mappedTransactions.length > 0 ? mappedTransactions : transactions).map((transaction) => (
                 <div
                   key={transaction.id}
                   className="group flex flex-col sm:flex-row sm:items-center justify-between p-5 rounded-2xl border border-border/40 hover:border-border/80 hover:shadow-md hover:bg-muted/30 transition-all duration-300 cursor-pointer bg-background/50"

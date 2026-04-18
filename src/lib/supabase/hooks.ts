@@ -147,6 +147,167 @@ export function useMessages(conversationId: string | undefined) {
   return { data, loading };
 }
 
+export function useProjectsForProvider(providerId: string | undefined) {
+  const [data, setData] = useState<Tables<"projects">[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!providerId) return;
+    supabase
+      .from("project_members")
+      .select("project_id")
+      .eq("user_id", providerId)
+      .then(async ({ data: memberships }) => {
+        if (!memberships?.length) {
+          setLoading(false);
+          return;
+        }
+        const projectIds = memberships.map((m) => m.project_id);
+        const { data: projects } = await supabase
+          .from("projects")
+          .select("*")
+          .in("id", projectIds)
+          .order("created_at", { ascending: false });
+        setData(projects ?? []);
+        setLoading(false);
+      });
+  }, [providerId]);
+
+  return { data, loading };
+}
+
+export function useOpportunities(providerId: string | undefined) {
+  const [data, setData] = useState<Tables<"projects">[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!providerId) return;
+    supabase
+      .from("project_members")
+      .select("project_id")
+      .eq("user_id", providerId)
+      .then(async ({ data: memberships }) => {
+        const myProjectIds = (memberships ?? []).map((m) => m.project_id);
+        let query = supabase
+          .from("projects")
+          .select("*")
+          .in("status", ["draft", "active"])
+          .order("created_at", { ascending: false });
+        if (myProjectIds.length > 0) {
+          query = query.not("id", "in", `(${myProjectIds.join(",")})`);
+        }
+        const { data: projects } = await query;
+        setData(projects ?? []);
+        setLoading(false);
+      });
+  }, [providerId]);
+
+  return { data, loading };
+}
+
+export function useMilestones(projectId: string | undefined) {
+  const [data, setData] = useState<Tables<"milestones">[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!projectId) return;
+    supabase
+      .from("milestones")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("due_date", { ascending: true })
+      .then(({ data: rows }) => {
+        setData(rows ?? []);
+        setLoading(false);
+      });
+  }, [projectId]);
+
+  return { data, loading };
+}
+
+export function useDocuments(projectId: string | undefined) {
+  const [data, setData] = useState<Tables<"documents">[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!projectId) return;
+    supabase
+      .from("documents")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false })
+      .then(({ data: rows }) => {
+        setData(rows ?? []);
+        setLoading(false);
+      });
+  }, [projectId]);
+
+  return { data, loading };
+}
+
+export function useProjectMembers(projectId: string | undefined) {
+  const [data, setData] = useState<(Tables<"project_members"> & { profile?: Tables<"profiles"> })[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!projectId) return;
+    supabase
+      .from("project_members")
+      .select("*, profiles(*)")
+      .eq("project_id", projectId)
+      .then(({ data: rows }) => {
+        const mapped = (rows ?? []).map((r) => ({
+          ...r,
+          profile: (r as Record<string, unknown>).profiles as Tables<"profiles"> | undefined,
+        }));
+        setData(mapped);
+        setLoading(false);
+      });
+  }, [projectId]);
+
+  return { data, loading };
+}
+
+export function useProject(projectId: string | undefined) {
+  const [data, setData] = useState<Tables<"projects"> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!projectId) return;
+    supabase
+      .from("projects")
+      .select("*")
+      .eq("id", projectId)
+      .single()
+      .then(({ data: row }) => {
+        setData(row ?? null);
+        setLoading(false);
+      });
+  }, [projectId]);
+
+  return { data, loading };
+}
+
+export function useProfile(userId: string | undefined) {
+  const [data, setData] = useState<Tables<"profiles"> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single()
+      .then(({ data: row }) => {
+        setData(row ?? null);
+        setLoading(false);
+      });
+  }, [userId]);
+
+  return { data, loading };
+}
+
 export function useBenefits() {
   const [data, setData] = useState<Tables<"benefits">[]>([]);
   const [loading, setLoading] = useState(true);

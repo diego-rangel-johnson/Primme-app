@@ -4,8 +4,24 @@ import { Download, Plus, TrendingUp, ArrowRight, CheckCircle, CreditCard, Buildi
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusBadge } from "@/components/status-badge";
+import { usePayments } from "@/lib/supabase/hooks";
+import { useSession } from "@/context/session-context";
 
 export default function PaymentsPage() {
+  const { user } = useSession();
+  const { data: dbPayments } = usePayments(user?.id);
+
+  const mappedHistory = dbPayments.map((p, i) => ({
+    id: i + 1,
+    date: new Date(p.created_at!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    status: p.status.toUpperCase(),
+    title: p.description ?? "Payment",
+    amount: `$${p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    type: p.status as "pending" | "completed",
+  }));
+
+  const pendingTotal = dbPayments.filter(p => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+  const completedTotal = dbPayments.filter(p => p.status === "completed").reduce((s, p) => s + p.amount, 0);
   const recentHistory = [
     {
       id: 1,
@@ -144,7 +160,7 @@ export default function PaymentsPage() {
               <span className="text-label text-primary">NEXT MILESTONE DUE</span>
             </StatusBadge>
 
-            <p className="text-display font-display text-foreground mb-3 tracking-tight group-hover:text-primary transition-colors duration-500">$1,200.00</p>
+            <p className="text-display font-display text-foreground mb-3 tracking-tight group-hover:text-primary transition-colors duration-500">${pendingTotal > 0 ? dbPayments.find(p => p.status === 'pending')?.amount.toLocaleString(undefined, {minimumFractionDigits: 2}) ?? '0.00' : '0.00'}</p>
 
             <div className="flex items-center gap-2 mt-4 text-label text-primary bg-primary/5 w-fit px-3 py-1.5 rounded-lg">
               <Calendar className="w-3.5 h-3.5" />
@@ -182,7 +198,7 @@ export default function PaymentsPage() {
               TOTAL INVESTED (YTD)
             </span>
 
-            <p className="text-display font-display text-foreground mb-3 tracking-tight">$3,350.00</p>
+            <p className="text-display font-display text-foreground mb-3 tracking-tight">${completedTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
 
             <div className="flex items-center gap-2 mt-4 text-label text-muted-foreground bg-muted/50 w-fit px-3 py-1.5 rounded-lg border border-border/50">
               <TrendingUp className="w-3.5 h-3.5 text-success" />
@@ -214,7 +230,7 @@ export default function PaymentsPage() {
             </div>
 
             <div className="space-y-4">
-              {recentHistory.map((transaction, i) => (
+              {(mappedHistory.length > 0 ? mappedHistory : recentHistory).map((transaction, i) => (
                 <div
                   key={transaction.id}
                   className="group flex flex-col sm:flex-row sm:items-center gap-5 p-5 rounded-2xl hover:bg-muted/50 transition-all duration-300 border border-transparent hover:border-border/50 hover:shadow-sm"

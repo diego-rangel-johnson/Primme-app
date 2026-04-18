@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { QuoteEditor } from "@/components/provider/quote-editor";
+import { useOpportunities } from "@/lib/supabase/hooks";
+import { useSession } from "@/context/session-context";
 
 const OPPORTUNITIES = [
   {
@@ -67,9 +69,28 @@ const OPPORTUNITIES = [
 ];
 
 export default function OpportunitiesPage() {
+  const { user } = useSession();
+  const { data: dbOpps, loading } = useOpportunities(user?.id);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOpp, setSelectedOpp] = useState<typeof OPPORTUNITIES[0] | null>(null);
   const [isQuoteEditorOpen, setIsQuoteEditorOpen] = useState(false);
+
+  const mappedOpps = dbOpps.map((p, i) => ({
+    id: i + 1,
+    title: p.title,
+    location: p.address ?? "Miami, FL",
+    time: new Date(p.created_at!).toLocaleDateString(),
+    badge: p.status === "active" ? "Active" : "New",
+    badgeVariant: (p.status === "active" ? "success" : "primary") as "success" | "warning" | "primary",
+    sqft: "—",
+    type: p.type ?? "General",
+    gallons: "—",
+    description: p.description ?? "",
+    budget: p.budget ? `$${p.budget.toLocaleString()}` : "TBD",
+    image: p.thumbnail_url ?? "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600",
+  }));
+
+  const opportunities = mappedOpps.length > 0 ? mappedOpps : OPPORTUNITIES;
 
   const handleAccept = (opp: typeof OPPORTUNITIES[0]) => {
     setSelectedOpp(opp);
@@ -77,16 +98,16 @@ export default function OpportunitiesPage() {
   };
 
   const filteredOpportunities = useMemo(() => {
-    if (!searchQuery.trim()) return OPPORTUNITIES;
+    if (!searchQuery.trim()) return opportunities;
     const q = searchQuery.toLowerCase();
-    return OPPORTUNITIES.filter(
+    return opportunities.filter(
       (o) =>
         o.title.toLowerCase().includes(q) ||
         o.location.toLowerCase().includes(q) ||
         o.type.toLowerCase().includes(q) ||
         o.description.toLowerCase().includes(q)
     );
-  }, [searchQuery]);
+  }, [searchQuery, opportunities]);
 
   return (
     <div className="min-h-full flex flex-col bg-muted/20">
