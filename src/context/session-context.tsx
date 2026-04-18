@@ -79,6 +79,19 @@ export function getRoleDashboard(role: UserRole): string {
   return dashboards[role];
 }
 
+/** Prevents the UI from hanging forever if Supabase auth never resolves. */
+const SESSION_INIT_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  });
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [authUser, setAuthUser] = useState<User | null>(null);
@@ -112,29 +125,61 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [supabase]);
 
   useEffect(() => {
+    let cancelled = false;
+
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setAuthUser(session.user);
-        await fetchProfile(session.user);
+      try {
+        const { data: { session } } = await withTimeout(
+          supabase.auth.getSession(),
+          SESSION_INIT_TIMEOUT_MS,
+          "supabase.auth.getSession",
+        );
+        if (cancelled) return;
+        if (session?.user) {
+          setAuthUser(session.user);
+          try {
+            await fetchProfile(session.user);
+          } catch (profileErr) {
+            console.error("[Primme] fetchProfile during init failed:", profileErr);
+            setUser(null);
+          }
+        }
+      } catch (err) {
+        console.error("[Primme] Session init failed (login UI will still show):", err);
+        if (!cancelled) {
+          setAuthUser(null);
+          setUser(null);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-      setIsLoading(false);
     };
-    init();
+    void init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        if (session?.user) {
-          setAuthUser(session.user);
-          await fetchProfile(session.user);
-        } else {
-          setAuthUser(null);
-          setUser(null);
+        try {
+          if (session?.user) {
+            setAuthUser(session.user);
+            await fetchProfile(session.user);
+          } else {
+            setAuthUser(null);
+            setUser(null);
+          }
+        } catch (err) {
+          console.error("[Primme] onAuthStateChange handler failed:", err);
+          if (!session?.user) {
+            setAuthUser(null);
+            setUser(null);
+          }
         }
       },
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [supabase, fetchProfile]);
 
   useEffect(() => {
